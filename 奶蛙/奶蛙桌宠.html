@@ -1,0 +1,1157 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>奶蛙桌宠</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  body { overflow: hidden; background: transparent; width: 100vw; height: 100vh; font-family: 'Microsoft YaHei', sans-serif; }
+  #pet-container { position: fixed; width: 200px; height: 200px; cursor: grab; z-index: 99999; top: 100px; left: 100px; touch-action: none; pointer-events: auto; outline: none; -webkit-tap-highlight-color: transparent; }
+  #pet-container:active { cursor: grabbing; }
+  #pet-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; display: block; -webkit-tap-highlight-color: transparent; outline: none; transition: filter 0.3s; }
+  #pet-img.sleep { filter: brightness(0.8); }
+  #pet-img.sad { filter: brightness(0.65) saturate(0.6); }
+  #pet-shadow { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 80px; height: 16px; background: radial-gradient(ellipse, rgba(0,0,0,0.25) 0%, transparent 70%); border-radius: 50%; pointer-events: none; transition: opacity 0.3s; }
+  #bubble { position: absolute; top: -55px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); border: 2px solid #4a90d9; border-radius: 14px; padding: 8px 16px; font-size: 14px; color: #333; white-space: nowrap; opacity: 0; transition: opacity 0.3s; pointer-events: none; box-shadow: 0 2px 12px rgba(0,0,0,0.15); font-weight: bold; }
+  #bubble::after { content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid #4a90d9; }
+  #bubble.show { opacity: 1; }
+  #zzz { position: absolute; top: -30px; right: -10px; font-size: 24px; display: none; animation: zzzFloat 1.2s ease-out infinite; }
+  @keyframes zzzFloat { 0% { opacity: 0; transform: translateY(0) scale(0.5); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-40px) scale(1.2); } }
+  #menu { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; flex-direction: row; justify-content: center; align-items: center; background: rgba(255,255,255,0.88); border-top: 1px solid #e0e0e0; z-index: 100000; padding: 6px 0; gap: 2px; backdrop-filter: blur(6px); }
+  #menu .item { padding: 6px 12px; cursor: pointer; font-size: 13px; color: #444; transition: background 0.15s; border-radius: 8px; white-space: nowrap; }
+  #menu .item:hover { background: #e8f0fe; color: #1a73e8; }
+  #thought { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,0.7); color: #fff; padding: 30px 40px; border-radius: 16px; font-size: 18px; text-align: center; line-height: 1.8; z-index: 100001; display: none; max-width: 80vw; box-shadow: 0 8px 40px rgba(0,0,0,0.4); }
+  #thought .close-btn { margin-top: 16px; padding: 6px 24px; border: none; background: #4a90d9; color: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  /* ===== 聊天系统 ===== */
+  #chat-panel { position: fixed; right: 0; top: 0; width: 320px; height: 100vh; background: rgba(255,255,255,0.92); border-left: 1px solid #e0e0e0; z-index: 99998; display: flex; flex-direction: column; box-shadow: -2px 0 12px rgba(0,0,0,0.06); font-family: 'Microsoft YaHei', sans-serif; }
+  #chat-header { padding: 14px 18px; border-bottom: 1px solid #eee; font-size: 16px; font-weight: bold; color: #4a90d9; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  #chat-header .close-chat { margin-left: auto; cursor: pointer; color: #999; font-size: 18px; padding: 0 4px; }
+  #chat-header .close-chat:hover { color: #333; }
+  #chat-msgs { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  #chat-msgs::-webkit-scrollbar { width: 4px; }
+  #chat-msgs::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+  .chat-msg { max-width: 85%; padding: 8px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; word-break: break-word; animation: msgIn 0.25s ease; }
+  @keyframes msgIn { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
+  .chat-msg.user { align-self: flex-end; background: #4a90d9; color: #fff; border-bottom-right-radius: 4px; }
+  .chat-msg.naiwa { align-self: flex-start; background: #f0f4f8; color: #333; border-bottom-left-radius: 4px; }
+  .chat-msg.naiwa .name-tag { font-size: 11px; color: #4a90d9; font-weight: bold; margin-bottom: 2px; }
+  #chat-input-area { padding: 10px 14px 14px; border-top: 1px solid #eee; display: flex; gap: 8px; flex-shrink: 0; }
+  #chat-input { flex: 1; border: 1px solid #ddd; border-radius: 20px; padding: 8px 16px; font-size: 14px; outline: none; font-family: 'Microsoft YaHei', sans-serif; transition: border 0.2s; user-select: text; }
+  #chat-input:focus { border-color: #4a90d9; }
+  #chat-send { width: 40px; height: 40px; border: none; background: #4a90d9; color: #fff; border-radius: 50%; font-size: 18px; cursor: pointer; flex-shrink: 0; transition: background 0.2s; display: flex; align-items: center; justify-content: center; }
+  #chat-send:hover { background: #357abd; }
+  #chat-send:active { background: #2a6cb5; }
+  #chat-toggle { position: fixed; right: 14px; bottom: 14px; width: 48px; height: 48px; border: none; background: #4a90d9; color: #fff; border-radius: 50%; font-size: 22px; cursor: pointer; z-index: 99999; box-shadow: 0 2px 12px rgba(0,0,0,0.2); transition: transform 0.2s; display: flex; align-items: center; justify-content: center; }
+  #chat-toggle:hover { transform: scale(1.08); }
+  #chat-toggle:active { transform: scale(0.95); }
+  #token-bar { padding: 5px 14px; border-top: 1px solid #eee; font-size: 11px; color: #999; display: flex; justify-content: space-between; flex-shrink: 0; font-family: 'Microsoft YaHei', sans-serif; }
+  #token-bar .token-num { color: #4a90d9; font-weight: bold; }
+  /* ===== 成就系统 ===== */
+  #ach-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 420px; max-height: 80vh; background: rgba(255,255,255,0.97); border-radius: 18px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); z-index: 100002; display: none; overflow: hidden; flex-direction: column; }
+  #ach-panel.show { display: flex; }
+  #ach-header { padding: 16px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  #ach-header .title { font-size: 18px; font-weight: bold; color: #4a90d9; }
+  #ach-header .close-ach { cursor: pointer; color: #999; font-size: 20px; padding: 0 6px; }
+  #ach-header .close-ach:hover { color: #333; }
+  #ach-body { padding: 14px 18px 18px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  #ach-body::-webkit-scrollbar { width: 4px; }
+  #ach-body::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+  .ach-card { display: flex; flex-direction: column; align-items: center; padding: 14px 10px; border-radius: 12px; background: #f8f9fa; text-align: center; transition: all 0.3s; border: 2px solid transparent; }
+  .ach-card.unlocked { background: #e8f5e9; border-color: #66bb6a; }
+  .ach-card .ach-icon { font-size: 28px; margin-bottom: 6px; }
+  .ach-card .ach-name { font-size: 13px; font-weight: bold; color: #333; }
+  .ach-card .ach-desc { font-size: 11px; color: #999; margin-top: 3px; }
+  .ach-card.locked .ach-icon { filter: grayscale(1); opacity: 0.4; }
+  .ach-card.locked .ach-name { color: #bbb; }
+  .ach-card.locked .ach-desc { color: #ccc; }
+  #ach-stats { padding: 8px 20px; border-top: 1px solid #eee; font-size: 12px; color: #888; display: flex; justify-content: space-between; flex-shrink: 0; }
+  #ach-stats .ach-progress { color: #4a90d9; font-weight: bold; }
+  /* 成就解锁通知 */
+  .ach-notification { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); z-index: 200000; transition: top 0.5s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; }
+  .ach-notification.show { top: 24px; }
+  .ach-notif-inner { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#ffd54f,#ffb300); padding: 16px 28px; border-radius: 16px; box-shadow: 0 4px 24px rgba(255,179,0,0.4); }
+  .ach-notif-icon { font-size: 36px; }
+  .ach-notif-title { font-size: 13px; color: #7c5800; font-weight: bold; }
+  .ach-notif-name { font-size: 18px; color: #3e2a00; font-weight: bold; }
+  .ach-notif-desc { font-size: 12px; color: #7c5800; }
+  #ach-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 100001; display: none; }
+  #ach-overlay.show { display: block; }
+  /* ===== 亲密度 ===== */
+  #intimacy-badge { position: fixed; top: 14px; left: 14px; z-index: 99997; background: rgba(255,255,255,0.92); border-radius: 14px; padding: 6px 14px 6px 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: default; border: 1px solid rgba(74,144,217,0.2); user-select: none; }
+  #intimacy-badge .intimacy-icon { font-size: 18px; }
+  #intimacy-badge .intimacy-lv { color: #4a90d9; font-weight: bold; font-size: 12px; }
+  #intimacy-badge .intimacy-name { color: #e67e22; font-weight: bold; }
+  #intimacy-bar { width: 62px; height: 4px; background: #e8e8e8; border-radius: 2px; overflow: hidden; margin: 0 2px; }
+  #intimacy-bar .intimacy-fill { height: 100%; background: linear-gradient(90deg,#4a90d9,#e67e22); border-radius: 2px; transition: width 0.4s ease; }
+  /* ===== 粒子画布 ===== */
+  #fx-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 100003; }
+  /* ===== 屏幕震动 ===== */
+  .screen-shake { animation: shake 0.4s ease; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    10% { transform: translate(-4px,2px); }
+    20% { transform: translate(4px,-2px); }
+    30% { transform: translate(-3px,3px); }
+    40% { transform: translate(3px,-1px); }
+    50% { transform: translate(-2px,2px); }
+    60% { transform: translate(2px,-2px); }
+    70% { transform: translate(-1px,1px); }
+    80% { transform: translate(1px,-1px); }
+  }
+  /* ===== 光环特效 ===== */
+  #pet-glow { position: absolute; width: 220px; height: 220px; top: -10px; left: -10px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
+  #pet-glow.active { opacity: 1; animation: pulse-glow 1.5s ease infinite; }
+  @keyframes pulse-glow {
+    0%,100% { box-shadow: 0 0 20px 10px rgba(255,183,77,0.4); }
+    50% { box-shadow: 0 0 40px 20px rgba(255,183,77,0.6); }
+  }
+</style>
+</head>
+<body>
+
+<div id="pet-container">
+  <div id="pet-glow"></div>
+  <img id="pet-img" src="素材/奶龙.png" alt="奶龙" />
+  <div id="pet-shadow"></div>
+  <div id="bubble">呱~ 我是奶蛙！</div>
+  <div id="zzz">💤</div>
+</div>
+<canvas id="fx-canvas"></canvas>
+
+<div id="intimacy-badge">
+  <span class="intimacy-icon" id="intimacy-icon">🥚</span>
+  <span class="intimacy-lv" id="intimacy-lv">Lv.0</span>
+  <span class="intimacy-name" id="intimacy-name">陌生</span>
+  <div id="intimacy-bar"><div class="intimacy-fill" id="intimacy-fill" style="width:0%"></div></div>
+</div>
+
+<div id="menu">
+  <div class="item" data-action="feed">🍼 喂食</div>
+  <div class="item" data-action="pet">🖐️ 摸摸头</div>
+  <div class="item" data-action="dance">💃 跳舞</div>
+  <div class="item" data-action="sleep">😴 睡觉</div>
+  <div class="item" data-action="walk">🚶 散步</div>
+  <div class="item" data-action="think">💭 心想</div>
+  <div class="item" data-action="achievement">🏆 成就</div>
+  <div class="item" data-action="bully">👊 欺负</div>
+</div>
+
+<div id="thought">
+  <div id="thought-text"></div>
+  <button class="close-btn" id="thought-close">知道啦</button>
+</div>
+
+<div id="ach-overlay"></div>
+<div id="ach-panel">
+  <div id="ach-header">
+    <span class="title">🏆 成就</span>
+    <span class="close-ach" id="ach-close">✕</span>
+  </div>
+  <div id="ach-body"></div>
+  <div id="ach-stats">
+    <span>已解锁 <span id="ach-unlocked-count" class="ach-progress">0</span> / <span id="ach-total-count" class="ach-progress">0</span></span>
+    <span>完成率 <span id="ach-percent" class="ach-progress">0%</span></span>
+  </div>
+</div>
+
+<audio id="pet-audio" src="音效/奶蛙音效.mp4" preload="auto"></audio>
+
+<!-- ===== 聊天系统 ===== -->
+<button id="chat-toggle">💬</button>
+<div id="chat-panel" style="display:none;">
+  <div id="chat-header">
+    <span>🐸 奶蛙聊天</span>
+    <span style="display:flex;align-items:center;gap:6px;">
+      <span id="mode-toggle" style="font-size:13px;cursor:pointer;user-select:none;padding:1px 6px;border-radius:6px;background:rgba(255,255,255,0.2);" title="思考强度：高">🐸</span>
+      <span id="tts-toggle" style="font-size:13px;cursor:pointer;color:#fff;opacity:0.8;user-select:none;" title="语音开关">🔊</span>
+      <span class="close-chat" id="chat-close">✕</span>
+    </span>
+  </div>
+  <div id="chat-msgs"></div>
+  <div id="chat-input-area">
+    <input id="chat-input" type="text" placeholder="对奶蛙说句话..." maxlength="100" />
+    <button id="chat-send">➤</button>
+  </div>
+  <div id="token-bar">
+    <span>⚡ <span id="last-tokens" class="token-num">0</span> tokens</span>
+    <span>📊 累计 <span id="total-tokens" class="token-num">0</span> | <span id="req-count" class="token-num">0</span>次</span>
+  </div>
+</div>
+
+<script>
+(function() {
+  var img = document.getElementById('pet-img');
+  var container = document.getElementById('pet-container');
+  var bubble = document.getElementById('bubble');
+  var zzzEl = document.getElementById('zzz');
+  var petGlow = document.getElementById('pet-glow');
+
+  // ====== 粒子特效系统 ======
+  var fxCanvas = document.getElementById('fx-canvas');
+  var fxCtx = fxCanvas.getContext('2d');
+  var particles = [];
+
+  function resizeFxCanvas() {
+    fxCanvas.width = window.innerWidth;
+    fxCanvas.height = window.innerHeight;
+  }
+  resizeFxCanvas();
+  window.addEventListener('resize', resizeFxCanvas);
+
+  // 粒子基类
+  function Particle(x, y, cfg) {
+    this.x = x; this.y = y;
+    this.vx = cfg.vx || (Math.random() - 0.5) * 4;
+    this.vy = cfg.vy || -Math.random() * 3 - 1;
+    this.life = cfg.life || 60;
+    this.maxLife = this.life;
+    this.size = cfg.size || 12;
+    this.type = cfg.type || 'circle'; // circle, emoji, text
+    this.color = cfg.color || '#ffeb3b';
+    this.emoji = cfg.emoji || '✨';
+    this.text = cfg.text || '';
+    this.gravity = cfg.gravity || 0;
+    this.friction = cfg.friction || 0.98;
+    this.rotation = cfg.rotation || 0;
+    this.rotSpeed = cfg.rotSpeed || 0;
+    this.scale = cfg.scale || 1;
+    this.scaleEnd = cfg.scaleEnd != null ? cfg.scaleEnd : 1;
+    this.fadeStart = cfg.fadeStart != null ? cfg.fadeStart : 0.5; // 开始淡出的生命比例
+  }
+
+  Particle.prototype.update = function() {
+    this.life--;
+    this.vx *= this.friction;
+    this.vy *= this.friction;
+    this.vy += this.gravity;
+    this.x += this.vx;
+    this.y += this.vy;
+    this.rotation += this.rotSpeed;
+    var t = 1 - this.life / this.maxLife;
+    this.scale = this.scale + (this.scaleEnd - this.scale) * 0.05;
+    return this.life > 0;
+  };
+
+  Particle.prototype.draw = function(ctx) {
+    var lifeRatio = this.life / this.maxLife;
+    var alpha = lifeRatio < this.fadeStart ? lifeRatio / this.fadeStart : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+    ctx.scale(this.scale, this.scale);
+
+    if (this.type === 'circle') {
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.fill();
+    } else if (this.type === 'emoji') {
+      ctx.font = this.size + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.emoji, 0, 0);
+    } else if (this.type === 'text') {
+      ctx.font = 'bold ' + this.size + 'px Microsoft YaHei, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = this.color;
+      ctx.fillText(this.text, 0, 0);
+    }
+
+    ctx.restore();
+  };
+
+  // 发射粒子
+  function emitParticles(x, y, list) {
+    for (var i = 0; i < list.length; i++) {
+      particles.push(new Particle(x, y, list[i]));
+    }
+  }
+
+  // ====== 预设特效 ======
+
+  // 💕 爱心飘散 (摸头)
+  function fxHearts(x, y) {
+    var list = [];
+    for (var i = 0; i < 8; i++) {
+      list.push({
+        vx: (Math.random() - 0.5) * 6,
+        vy: -Math.random() * 4 - 2,
+        life: 50 + Math.random() * 30,
+        size: 18 + Math.random() * 10,
+        type: 'emoji',
+        emoji: ['💕', '❤️', '💗', '💖'][Math.floor(Math.random() * 4)],
+        gravity: -0.03,
+        friction: 0.97,
+        scaleEnd: 1.3,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // ✨ 星星闪烁 (喂食)
+  function fxSparkles(x, y) {
+    var list = [];
+    for (var i = 0; i < 12; i++) {
+      var angle = (Math.PI * 2 / 12) * i;
+      list.push({
+        vx: Math.cos(angle) * (2 + Math.random() * 3),
+        vy: Math.sin(angle) * (2 + Math.random() * 3),
+        life: 40 + Math.random() * 20,
+        size: 14 + Math.random() * 8,
+        type: 'emoji',
+        emoji: ['✨', '⭐', '🌟', '💫'][Math.floor(Math.random() * 4)],
+        gravity: 0,
+        friction: 0.96,
+        scaleEnd: 0.5,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // 🎵 音符飘散 (跳舞)
+  function fxMusicNotes(x, y) {
+    var list = [];
+    for (var i = 0; i < 6; i++) {
+      list.push({
+        vx: (Math.random() - 0.5) * 5,
+        vy: -Math.random() * 3 - 2,
+        life: 60 + Math.random() * 30,
+        size: 20 + Math.random() * 10,
+        type: 'emoji',
+        emoji: ['🎵', '🎶', '🎼', '🎤'][Math.floor(Math.random() * 4)],
+        gravity: -0.02,
+        friction: 0.97,
+        rotSpeed: (Math.random() - 0.5) * 0.1,
+        scaleEnd: 0.8,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // 💧 泪滴 (欺负)
+  function fxTears(x, y) {
+    var list = [];
+    for (var i = 0; i < 5; i++) {
+      list.push({
+        vx: (Math.random() - 0.5) * 3,
+        vy: Math.random() * 2 + 1,
+        life: 40 + Math.random() * 20,
+        size: 16 + Math.random() * 8,
+        type: 'emoji',
+        emoji: ['💧', '💦', '😿'][Math.floor(Math.random() * 3)],
+        gravity: 0.15,
+        friction: 0.99,
+        scaleEnd: 0.6,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // 💤 Zzz泡泡 (睡觉)
+  function fxSleepBubbles(x, y) {
+    var list = [];
+    for (var i = 0; i < 3; i++) {
+      list.push({
+        vx: Math.random() * 1 - 0.5,
+        vy: -Math.random() * 1.5 - 0.5,
+        life: 70 + Math.random() * 30,
+        size: 16 + Math.random() * 8,
+        type: 'emoji',
+        emoji: ['💤', '😴', '🌙'][Math.floor(Math.random() * 3)],
+        gravity: -0.01,
+        friction: 0.99,
+        scaleEnd: 1.5,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // 🐾 脚印 (散步)
+  function fxFootprints(x, y, dir) {
+    var list = [];
+    list.push({
+      vx: 0,
+      vy: 0,
+      life: 50,
+      size: 16,
+      type: 'emoji',
+      emoji: '🐾',
+      gravity: 0,
+      friction: 1,
+      scaleEnd: 1.2,
+    });
+    emitParticles(x, y + 80, list);
+  }
+
+  // 🍼 食物碎屑 (喂食)
+  function fxFoodCrumbs(x, y) {
+    var list = [];
+    for (var i = 0; i < 6; i++) {
+      list.push({
+        vx: (Math.random() - 0.5) * 5,
+        vy: -Math.random() * 4 - 1,
+        life: 35 + Math.random() * 15,
+        size: 8 + Math.random() * 6,
+        type: 'circle',
+        color: ['#ffcc02', '#ff9800', '#8bc34a', '#ff5722'][Math.floor(Math.random() * 4)],
+        gravity: 0.12,
+        friction: 0.97,
+        scaleEnd: 0.3,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // 🎊 五彩纸屑 (成就解锁)
+  function fxConfetti(x, y) {
+    var list = [];
+    for (var i = 0; i < 20; i++) {
+      list.push({
+        vx: (Math.random() - 0.5) * 10,
+        vy: -Math.random() * 8 - 2,
+        life: 80 + Math.random() * 40,
+        size: 6 + Math.random() * 8,
+        type: 'circle',
+        color: ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff6b9d', '#9b59b6'][Math.floor(Math.random() * 6)],
+        gravity: 0.08,
+        friction: 0.99,
+        rotSpeed: (Math.random() - 0.5) * 0.2,
+        scaleEnd: 0.5,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // 🌈 彩虹光圈 (开心/点击)
+  function fxRainbowRing(x, y) {
+    var list = [];
+    for (var i = 0; i < 16; i++) {
+      var angle = (Math.PI * 2 / 16) * i;
+      list.push({
+        vx: Math.cos(angle) * 5,
+        vy: Math.sin(angle) * 5,
+        life: 30,
+        size: 6,
+        type: 'circle',
+        color: ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#9b59b6', '#ff6b9d'][i % 6],
+        gravity: 0,
+        friction: 0.94,
+        scaleEnd: 0.2,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // 💭 思考泡泡 (心想)
+  function fxThoughtBubbles(x, y) {
+    var list = [];
+    for (var i = 0; i < 4; i++) {
+      list.push({
+        vx: (Math.random() - 0.5) * 2,
+        vy: -Math.random() * 2 - 1,
+        life: 60 + Math.random() * 30,
+        size: 10 + Math.random() * 15,
+        type: 'circle',
+        color: 'rgba(74,144,217,0.5)',
+        gravity: -0.02,
+        friction: 0.98,
+        scaleEnd: 2,
+      });
+    }
+    emitParticles(x, y, list);
+  }
+
+  // 环境萤火虫 (idle 时随机出现)
+  function fxFirefly() {
+    var x = state.x + Math.random() * 200;
+    var y = state.y + Math.random() * 200;
+    particles.push(new Particle(x, y, {
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: -Math.random() * 0.5 - 0.2,
+      life: 80 + Math.random() * 60,
+      size: 3 + Math.random() * 3,
+      type: 'circle',
+      color: '#ffd54f',
+      gravity: -0.005,
+      friction: 0.995,
+      scaleEnd: 0.1,
+    }));
+  }
+
+  // 粒子渲染循环
+  function renderParticles() {
+    fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+    var alive = [];
+    for (var i = 0; i < particles.length; i++) {
+      if (particles[i].update()) {
+        particles[i].draw(fxCtx);
+        alive.push(particles[i]);
+      }
+    }
+    particles = alive;
+    requestAnimationFrame(renderParticles);
+  }
+  renderParticles();
+
+  // 环境萤火虫定时器
+  setInterval(function() {
+    if (state.anim === 'idle' && Math.random() < 0.3) {
+      fxFirefly();
+    }
+  }, 800);
+  var menu = document.getElementById('menu');
+  var thought = document.getElementById('thought');
+  var thoughtText = document.getElementById('thought-text');
+  var audio = document.getElementById('pet-audio');
+  audio.volume = 1.0;
+
+  function playSound() {
+    try {
+      var snd = new Audio('音效/奶蛙音效.mp4');
+      snd.volume = 1.0;
+      snd.play().catch(function(e) { console.log('音效失败:', e); });
+    } catch(e) { console.log('音效错误:', e); }
+  }
+
+  var CHAT_WIDTH = 320;
+  var PET_SIZE = 200;
+  function maxX() { return window.innerWidth - PET_SIZE - CHAT_WIDTH; }
+  function maxY() { return window.innerHeight - PET_SIZE - 44; }
+
+  var state = {
+    anim: 'idle',
+    tick: 0,
+    dir: 1,
+    x: Math.min((window.innerWidth - 200) / 2, maxX()),
+    y: (window.innerHeight - 200) / 2,
+    targetX: Math.min((window.innerWidth - 200) / 2, maxX()),
+    isSleeping: false,
+    isDragging: false,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    animTimer: 0,
+    autoTimer: 0,
+  };
+
+  var lines = {
+    greet: ['呱~ 你好呀！🥰', '嘿！一起来玩！', '奶蛙来啦！✨', '今天好开心~', '呱呱呱！', '想我了吗？💚'],
+    feed: ['好吃好吃！😋', '再来一口~呱', '美味虫子！', '肚子鼓鼓的~', '好满足呀~~'],
+    pet: ['嘿嘿，好舒服~ 😊', '摸摸脑袋~呱', '再摸一会儿~', '好温暖呀 💕', '喜欢被摸！'],
+    dance: ['一起摇摆！🎵', '呱呱咚呱！', '嗨起来！', '我跳得咋样？', '再来一次！呱~'],
+    sad: ['有点孤单呢…', '抱抱我好吗？🥺', '想出去跳水…'],
+    think: ['今天吃什么呢？🤔', '池塘那边有好吃的吗…', '我是不是最可爱的蛙蛙？😎', '好想喝荷叶茶…', '要不要去散个步呢？', '明天会下雨吗？🌧️'],
+    sleep: ['晚安啦… 🌙', '好困… Zzz', '做个好梦~', '呼噜呱呱…', '明天见…😴'],
+    bully: ['哎哟！好痛！😭', '你干嘛欺负我！🥺', '呱呜… 我生气了！😤', '再这样我不理你了！', '讨厌！嘤嘤嘤…😿'],
+  };
+
+  function randomMsg(cat) { var arr = lines[cat] || lines.greet; return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function showBubble(text, duration) {
+    if (!duration) duration = 2500;
+    bubble.textContent = text;
+    bubble.classList.add('show');
+    clearTimeout(bubble._hide);
+    bubble._hide = setTimeout(function() { bubble.classList.remove('show'); }, duration);
+  }
+
+  function setAnim(name) {
+    state.anim = name;
+    state.animTimer = 0;
+    state.isSleeping = (name === 'sleep');
+    zzzEl.style.display = 'none';
+    img.className = '';
+  }
+
+  var shadow = document.getElementById('pet-shadow');
+
+  function update() {
+    state.tick++;
+    var el = img;
+    el.style.transition = 'transform 0.25s ease';
+    el.style.transform = '';
+    el.style.filter = '';
+
+    var shadowScale = 1;
+    var shadowOpacity = 0.6;
+
+    switch (state.anim) {
+      case 'idle':
+        var breathe = Math.sin(state.tick * 0.03);
+        var s = 1 + breathe * 0.04;
+        // 弹性：上下微浮
+        var floatY = Math.sin(state.tick * 0.025) * 6;
+        el.style.transition = 'none';
+        el.style.transform = 'translateY(' + floatY + 'px) scale(' + s + ') scaleX(' + state.dir + ')';
+        shadowScale = 1 - Math.abs(floatY) * 0.005;
+        break;
+      case 'walk':
+        var walkCycle = state.tick * 0.14;
+        var b = Math.abs(Math.sin(walkCycle)) * 14;
+        var w = Math.sin(walkCycle) * 5;
+        // 落地时弹性压扁
+        var squash = Math.abs(Math.sin(walkCycle)) < 0.1 ? 0.9 : 1;
+        var stretch = Math.abs(Math.sin(walkCycle)) < 0.1 ? 1.1 : 1;
+        el.style.transition = 'none';
+        el.style.transform = 'translateY(' + (-b) + 'px) rotate(' + w + 'deg) scaleX(' + (state.dir * stretch) + ') scaleY(' + squash + ')';
+        shadowScale = 1 - b * 0.008;
+        shadowOpacity = 0.6 - b * 0.02;
+        break;
+      case 'dance':
+        var ds = 1 + Math.sin(state.tick * 0.22) * 0.12;
+        var dr = Math.sin(state.tick * 0.22) * 18;
+        var dj = Math.abs(Math.sin(state.tick * 0.16)) * 20;
+        // 弹跳弹性形变
+        var landPhase = Math.abs(Math.sin(state.tick * 0.16));
+        var dSqX = landPhase < 0.15 ? 1.15 : 1;
+        var dSqY = landPhase < 0.15 ? 0.85 : 1;
+        el.style.transition = 'none';
+        el.style.transform = 'translateY(' + (-dj) + 'px) scale(' + ds + ') rotate(' + dr + 'deg) scaleX(' + (state.dir * dSqX) + ') scaleY(' + dSqY + ')';
+        shadowScale = 1 - dj * 0.006;
+        shadowOpacity = 0.5 - dj * 0.015;
+        break;
+      case 'sleep':
+        var sleepBreathe = 0.92 + Math.sin(state.tick * 0.02) * 0.02;
+        el.style.transition = 'none';
+        el.style.transform = 'scale(' + sleepBreathe + ')';
+        el.className = 'sleep';
+        shadowScale = 0.7;
+        shadowOpacity = 0.3;
+        if (state.tick % 80 === 0) zzzEl.style.display = 'block';
+        if (state.tick % 80 > 40) zzzEl.style.display = 'none';
+        break;
+      case 'happy':
+        var hb = Math.abs(Math.sin(state.tick * 0.16)) * 20;
+        var landH = Math.abs(Math.sin(state.tick * 0.16));
+        var hs = 1 + landH * 0.1;
+        // 开心跳跃弹性
+        var hSqX = landH < 0.12 ? 1.12 : 1;
+        var hSqY = landH < 0.12 ? 0.88 : 1;
+        el.style.transition = 'none';
+        el.style.transform = 'translateY(' + (-hb) + 'px) scale(' + hs + ') scaleX(' + (state.dir * hSqX) + ') scaleY(' + hSqY + ')';
+        shadowScale = 1 - hb * 0.007;
+        shadowOpacity = 0.5 - hb * 0.015;
+        break;
+      case 'sad':
+        var sadShake = Math.sin(state.tick * 0.5) * 2;
+        el.style.transition = 'none';
+        el.style.transform = 'scale(0.88) translateY(5px) translateX(' + sadShake + 'px)';
+        el.className = 'sad';
+        shadowScale = 0.6;
+        shadowOpacity = 0.2;
+        break;
+    }
+
+    // 更新阴影
+    if (shadow) {
+      shadow.style.transform = 'translateX(-50%) scaleX(' + shadowScale + ')';
+      shadow.style.opacity = shadowOpacity;
+    }
+
+    if (!state.isDragging && state.anim !== 'sleep' && state.anim !== 'dance') {
+      state.autoTimer++;
+      if (state.autoTimer > 300 + Math.random() * 200) {
+        state.autoTimer = 0;
+        var r = Math.random();
+        if (r < 0.3) { setAnim('idle');
+        } else if (r < 0.55) { setAnim('walk'); state.targetX = 10 + Math.random() * (maxX() - 20); setTimeout(function() { if (state.anim === 'walk') setAnim('idle'); }, 2000 + Math.random() * 3000);
+        } else if (r < 0.7) { showBubble(randomMsg('greet'), 2000);
+        } else if (r < 0.85) { setAnim('happy'); setTimeout(function() { if (state.anim === 'happy') setAnim('idle'); }, 1500);
+        } else { setAnim('sad'); setTimeout(function() { if (state.anim === 'sad') setAnim('idle'); }, 2000); }
+      }
+    }
+
+    if (state.anim === 'walk' && !state.isDragging) {
+      var dx = state.targetX - state.x;
+      if (Math.abs(dx) > 3) { state.x += Math.sign(dx) * 1.5; state.dir = Math.sign(dx) || 1; }
+      else { setAnim('idle'); }
+    }
+
+    if (state.anim === 'dance') { state.animTimer++; if (state.animTimer > 160) setAnim('idle'); }
+
+    container.style.left = state.x + 'px';
+    container.style.top = state.y + 'px';
+    requestAnimationFrame(update);
+  }
+
+  // 拖拽
+  container.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return;
+    state.isDragging = true; state.dragOffsetX = e.clientX - state.x; state.dragOffsetY = e.clientY - state.y;
+    container.style.cursor = 'grabbing'; setAnim('idle');
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!state.isDragging) return;
+    state.x = e.clientX - state.dragOffsetX; state.y = e.clientY - state.dragOffsetY;
+    state.x = Math.max(0, Math.min(maxX(), state.x)); state.y = Math.max(0, Math.min(maxY(), state.y));
+  });
+  document.addEventListener('mouseup', function() { if (state.isDragging) { state.isDragging = false; container.style.cursor = 'grab'; stats.drags++; saveStats(); checkAchievements(); } });
+
+  container.addEventListener('touchstart', function(e) {
+    var t = e.touches[0]; state.isDragging = true; state.dragOffsetX = t.clientX - state.x; state.dragOffsetY = t.clientY - state.y; setAnim('idle');
+  }, { passive: true });
+  document.addEventListener('touchmove', function(e) {
+    if (!state.isDragging) return; var t = e.touches[0];
+    state.x = t.clientX - state.dragOffsetX; state.y = t.clientY - state.dragOffsetY;
+    state.x = Math.max(0, Math.min(maxX(), state.x)); state.y = Math.max(0, Math.min(maxY(), state.y));
+  }, { passive: true });
+  document.addEventListener('touchend', function() { if (state.isDragging) { state.isDragging = false; stats.drags++; saveStats(); checkAchievements(); } }, { passive: true });
+
+  // 点击发声
+  container.addEventListener('click', function(e) {
+    if (state.isDragging) return;
+    stats.clicks++; saveStats(); checkAchievements();
+    playSound();
+    var cx = state.x + 100, cy = state.y + 100;
+    fxRainbowRing(cx, cy);
+    var r = Math.random();
+    if (r < 0.5) { showBubble(randomMsg('greet')); if (thinkingMode === 'high') { setAnim('happy'); setTimeout(function() { if (state.anim === 'happy') setAnim('idle'); }, 1200); }
+    } else if (r < 0.75) { showBubble(randomMsg('greet'));
+    } else { setAnim('dance'); showBubble(randomMsg('dance')); fxMusicNotes(cx, cy); }
+  });
+
+  // 右键菜单
+  container.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+  // 睡觉粒子定时器
+  var sleepFxTimer = null;
+
+  menu.addEventListener('click', function(e) {
+    var item = e.target.closest('.item'); if (!item) return;
+    var action = item.dataset.action;
+    var cx = state.x + 100, cy = state.y + 80;
+    switch (action) {
+      case 'feed':
+        setAnim('happy'); showBubble(randomMsg('feed'));
+        fxSparkles(cx, cy); fxFoodCrumbs(cx, cy - 60);
+        petGlow.classList.add('active'); petGlow.style.boxShadow = '0 0 20px 10px rgba(255,152,0,0.4)';
+        stats.feed++; saveStats(); checkAchievements();
+        setTimeout(function() { if (state.anim === 'happy') setAnim('idle'); petGlow.classList.remove('active'); }, 1500);
+        break;
+      case 'pet':
+        setAnim('happy'); showBubble(randomMsg('pet'));
+        fxHearts(cx, cy);
+        petGlow.classList.add('active'); petGlow.style.boxShadow = '0 0 20px 10px rgba(233,30,99,0.4)';
+        stats.pet++; saveStats(); checkAchievements();
+        setTimeout(function() { if (state.anim === 'happy') setAnim('idle'); petGlow.classList.remove('active'); }, 1500);
+        break;
+      case 'dance':
+        setAnim('dance'); showBubble(randomMsg('dance'));
+        fxMusicNotes(cx, cy);
+        // 跳舞期间持续发射音符
+        var danceInterval = setInterval(function() { fxMusicNotes(state.x + 100, state.y + 80); }, 600);
+        stats.dance++; saveStats(); checkAchievements();
+        setTimeout(function() { clearInterval(danceInterval); }, 5000);
+        break;
+      case 'sleep':
+        setAnim('sleep'); showBubble(randomMsg('sleep'), 2000);
+        fxSleepBubbles(cx, cy);
+        // 睡觉期间持续发射
+        sleepFxTimer = setInterval(function() { fxSleepBubbles(state.x + 100, state.y + 60); }, 2000);
+        stats.sleep++; saveStats(); checkAchievements();
+        break;
+      case 'walk':
+        setAnim('walk'); state.targetX = 10 + Math.random() * (maxX() - 20); state.dir = state.targetX > state.x ? 1 : -1;
+        showBubble('出去走走~ 🚶');
+        // 散步期间持续发射脚印
+        var walkInterval = setInterval(function() { fxFootprints(state.x + 100, state.y + 100, state.dir); }, 400);
+        stats.walk++; saveStats(); checkAchievements();
+        setTimeout(function() { if (state.anim === 'walk') setAnim('idle'); clearInterval(walkInterval); }, 2500);
+        break;
+      case 'think':
+        showBubble('💭', 3000); fxThoughtBubbles(cx, cy);
+        stats.think++; saveStats(); checkAchievements();
+        setTimeout(function() { thoughtText.textContent = randomMsg('think'); thought.style.display = 'block'; }, 500);
+        break;
+      case 'bully':
+        setAnim('sad'); playSound();
+        fxTears(cx, cy);
+        // 屏幕震动
+        document.body.classList.add('screen-shake');
+        setTimeout(function() { document.body.classList.remove('screen-shake'); }, 400);
+        stats.hit++; saveStats(); checkAchievements();
+        showBubble(randomMsg('bully'), 2500);
+        setTimeout(function() { if (state.anim === 'sad') setAnim('idle'); }, 2000);
+        break;
+      case 'achievement': toggleAchievementPanel(); break;
+    }
+  });
+
+  // 切换到sleep时清除旧的sleep定时器，退出sleep时也是
+  var origSetAnim = setAnim;
+  setAnim = function(name) {
+    if (state.anim === 'sleep' && name !== 'sleep' && sleepFxTimer) {
+      clearInterval(sleepFxTimer); sleepFxTimer = null;
+    }
+    origSetAnim(name);
+  };
+
+  function closeThought() { thought.style.display = 'none'; }
+  document.getElementById('thought-close').addEventListener('click', closeThought);
+
+  // ===== 成就系统 =====
+  var ACHIEVEMENTS = [
+    { id:'first_click', name:'初次相遇', desc:'点击奶蛙1次', icon:'🐸', check:function(s){return s.clicks>=1} },
+    { id:'feed_5', name:'小喂一口', desc:'喂食5次', icon:'🍼', check:function(s){return s.feed>=5} },
+    { id:'feed_30', name:'大胃王', desc:'喂食30次', icon:'🍼', check:function(s){return s.feed>=30} },
+    { id:'pet_5', name:'摸摸头', desc:'摸头5次', icon:'🖐️', check:function(s){return s.pet>=5} },
+    { id:'pet_30', name:'撸蛙狂魔', desc:'摸头30次', icon:'🖐️', check:function(s){return s.pet>=30} },
+    { id:'dance_10', name:'舞动奇迹', desc:'跳舞10次', icon:'💃', check:function(s){return s.dance>=10} },
+    { id:'dance_50', name:'舞王', desc:'跳舞50次', icon:'💃', check:function(s){return s.dance>=50} },
+    { id:'sleep_10', name:'春眠', desc:'睡觉10次', icon:'😴', check:function(s){return s.sleep>=10} },
+    { id:'sleep_50', name:'冬眠', desc:'睡觉50次', icon:'😴', check:function(s){return s.sleep>=50} },
+    { id:'walk_10', name:'散步达人', desc:'散步10次', icon:'🚶', check:function(s){return s.walk>=10} },
+    { id:'walk_50', name:'马拉松', desc:'散步50次', icon:'🚶', check:function(s){return s.walk>=50} },
+    { id:'think_10', name:'深度思考', desc:'心想10次', icon:'💭', check:function(s){return s.think>=10} },
+    { id:'chat_10', name:'聊天新手', desc:'聊天10条', icon:'💬', check:function(s){return s.chat>=10} },
+    { id:'chat_100', name:'话痨', desc:'聊天100条', icon:'💬', check:function(s){return s.chat>=100} },
+    { id:'tokens_10000', name:'电力满满', desc:'累计消耗10000 tokens', icon:'⚡', check:function(s){return s.totalTokens>=10000} },
+    { id:'switch_mode', name:'双面蛙', desc:'切换一次模式', icon:'🔄', check:function(s){return s.hasSwitchedMode} },
+    { id:'drag_50', name:'拖拽大师', desc:'拖拽50次', icon:'🏃', check:function(s){return s.drags>=50} },
+    { id:'bully_10', name:'大坏蛋', desc:'欺负10次', icon:'👊', check:function(s){return s.hit>=10} },
+    { id:'bully_50', name:'蛙界恶霸', desc:'欺负50次', icon:'👊', check:function(s){return s.hit>=50} },
+  ];
+
+  var stats = JSON.parse(localStorage.getItem('naiwa_stats') || '{"clicks":0,"feed":0,"pet":0,"dance":0,"sleep":0,"walk":0,"think":0,"chat":0,"totalTokens":0,"drags":0,"hasSwitchedMode":false,"hit":0}');
+  var unlockedAchievements = JSON.parse(localStorage.getItem('naiwa_achievements') || '[]');
+
+  var INTIMACY_LEVELS = [
+    { min:0, name:'陌生', icon:'🥚' },
+    { min:10, name:'初识', icon:'🐣' },
+    { min:30, name:'熟悉', icon:'🐸' },
+    { min:60, name:'友好', icon:'💚' },
+    { min:100, name:'亲密', icon:'💕' },
+    { min:150, name:'挚友', icon:'❤️' },
+    { min:200, name:'灵魂伴侣', icon:'🌟' },
+  ];
+
+  function calcIntimacyPoints() {
+    return stats.clicks * 0.5 + stats.feed * 3 + stats.pet * 2 + stats.dance * 2 + stats.walk * 1 + stats.think * 1 + stats.chat * 2 + stats.drags * 0.5 + stats.totalTokens / 100 - stats.hit * 5;
+  }
+
+  function getIntimacyLevel(points) {
+    for (var i = INTIMACY_LEVELS.length - 1; i >= 0; i--) {
+      if (points >= INTIMACY_LEVELS[i].min) return i;
+    }
+    return 0;
+  }
+
+  function updateIntimacy() {
+    var points = calcIntimacyPoints();
+    var lvIndex = getIntimacyLevel(points);
+    var lv = INTIMACY_LEVELS[lvIndex];
+    var nextMin = lvIndex < INTIMACY_LEVELS.length - 1 ? INTIMACY_LEVELS[lvIndex + 1].min : lv.min + 50;
+    var current = points - lv.min;
+    var needed = nextMin - lv.min;
+    var pct = Math.min(100, Math.round(current / needed * 100));
+    document.getElementById('intimacy-icon').textContent = lv.icon;
+    document.getElementById('intimacy-lv').textContent = 'Lv.' + lvIndex;
+    document.getElementById('intimacy-name').textContent = lv.name;
+    document.getElementById('intimacy-fill').style.width = pct + '%';
+  }
+
+  function saveStats() { localStorage.setItem('naiwa_stats', JSON.stringify(stats)); updateIntimacy(); }
+  function saveAchievements() { localStorage.setItem('naiwa_achievements', JSON.stringify(unlockedAchievements)); }
+
+  updateIntimacy();
+
+  function checkAchievements() {
+    var newUnlocks = [];
+    for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+      var a = ACHIEVEMENTS[i];
+      if (unlockedAchievements.indexOf(a.id) === -1 && a.check(stats)) {
+        unlockedAchievements.push(a.id);
+        newUnlocks.push(a);
+      }
+    }
+    if (newUnlocks.length > 0) {
+      saveAchievements();
+      for (var j = 0; j < newUnlocks.length; j++) {
+        showAchievementUnlock(newUnlocks[j]);
+      }
+    }
+  }
+
+  function showAchievementUnlock(a) {
+    playSound();
+    fxConfetti(window.innerWidth / 2, window.innerHeight / 3);
+    var el = document.createElement('div');
+    el.className = 'ach-notification';
+    el.innerHTML = '<div class="ach-notif-inner"><span class="ach-notif-icon">' + a.icon + '</span><div><div class="ach-notif-title">🏆 成就解锁！</div><div class="ach-notif-name">' + a.name + '</div><div class="ach-notif-desc">' + a.desc + '</div></div></div>';
+    document.body.appendChild(el);
+    setTimeout(function() { el.classList.add('show'); }, 10);
+    setTimeout(function() { el.classList.remove('show'); setTimeout(function() { el.remove(); }, 500); }, 3500);
+  }
+
+  function renderAchievementPanel() {
+    var body = document.getElementById('ach-body');
+    body.innerHTML = '';
+    var unlockedCount = 0;
+    for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+      var a = ACHIEVEMENTS[i];
+      var isUnlocked = unlockedAchievements.indexOf(a.id) !== -1;
+      if (isUnlocked) unlockedCount++;
+      var card = document.createElement('div');
+      card.className = 'ach-card ' + (isUnlocked ? 'unlocked' : 'locked');
+      card.innerHTML = '<div class="ach-icon">' + a.icon + '</div><div class="ach-name">' + a.name + '</div><div class="ach-desc">' + a.desc + '</div>';
+      body.appendChild(card);
+    }
+    document.getElementById('ach-unlocked-count').textContent = unlockedCount;
+    document.getElementById('ach-total-count').textContent = ACHIEVEMENTS.length;
+    document.getElementById('ach-percent').textContent = Math.round(unlockedCount / ACHIEVEMENTS.length * 100) + '%';
+  }
+
+  function toggleAchievementPanel() {
+    var panel = document.getElementById('ach-panel');
+    var overlay = document.getElementById('ach-overlay');
+    var isShow = panel.classList.contains('show');
+    if (isShow) {
+      panel.classList.remove('show');
+      overlay.classList.remove('show');
+    } else {
+      renderAchievementPanel();
+      panel.classList.add('show');
+      overlay.classList.add('show');
+    }
+  }
+
+  document.getElementById('ach-close').addEventListener('click', function() {
+    document.getElementById('ach-panel').classList.remove('show');
+    document.getElementById('ach-overlay').classList.remove('show');
+  });
+  document.getElementById('ach-overlay').addEventListener('click', function() {
+    document.getElementById('ach-panel').classList.remove('show');
+    document.getElementById('ach-overlay').classList.remove('show');
+  });
+
+  // ===== 聊天系统 =====
+  var chatPanel = document.getElementById('chat-panel');
+  var chatToggle = document.getElementById('chat-toggle');
+  var chatClose = document.getElementById('chat-close');
+  var chatMsgs = document.getElementById('chat-msgs');
+  var chatInput = document.getElementById('chat-input');
+  var chatSend = document.getElementById('chat-send');
+  var chatOpen = false;
+
+  // 对话历史
+  var chatHistory = [];
+  var isWaitingReply = false;
+  // 思考强度：'high' = 奶蛙, 'low' = 奶龙
+  var thinkingMode = 'low';
+
+  // Token 统计
+  var tokenStats = { prompt: 0, completion: 0, total: 0, lastPrompt: 0, lastCompletion: 0, lastTotal: 0, count: 0 };
+
+  function updateTokenDisplay() {
+    document.getElementById('last-tokens').textContent = tokenStats.lastTotal;
+    document.getElementById('total-tokens').textContent = tokenStats.total;
+    document.getElementById('req-count').textContent = tokenStats.count;
+  }
+
+  // TTS语音
+  var ttsEnabled = true;
+  var ttsVoice = null;
+
+  // 初始化语音
+  function initTTS() {
+    if ('speechSynthesis' in window) {
+      // 尝试找中文语音
+      var voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        ttsVoice = voices.find(function(v) { return v.lang.startsWith('zh'); }) || voices[0];
+      }
+    }
+  }
+  initTTS();
+  if ('speechSynthesis' in window && window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = initTTS;
+  }
+
+  function speak(text) {
+    if (!ttsEnabled || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    var utterance = new SpeechSynthesisUtterance(text.replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s呱嘿嘛咯哦呀哟嗯哈呵啦呗呗咯噜嘟噗嘎咻咚噼啪啦哇~！，。？、：；""''（）]/g, ''));
+    utterance.lang = 'zh-CN';
+    utterance.pitch = 1.7;
+    utterance.rate = 1.25;
+    utterance.volume = 1.0;
+    if (ttsVoice) utterance.voice = ttsVoice;
+    window.speechSynthesis.speak(utterance);
+  }
+
+
+  function addChatMsg(text, sender) {
+    var div = document.createElement('div');
+    div.className = 'chat-msg ' + sender;
+    if (sender === 'naiwa') {
+      div.innerHTML = '<div class="name-tag">🐸 奶蛙</div>' + escapeHtml(text);
+    } else {
+      div.textContent = text;
+    }
+    chatMsgs.appendChild(div);
+    chatMsgs.scrollTop = chatMsgs.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // AI回复（调Mimo API）
+  function getAIReply(messages, callback) {
+    var isHigh = thinkingMode === 'high';
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://token-plan-cn.xiaomimimo.com/v1/chat/completions', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Authorization', 'Bearer tp-cgwa5wq6yt6nrhb36fhji18p8stzr5o11nzh695u3a9vm08q');
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        try {
+          var data = JSON.parse(xhr.responseText);
+          var reply = data.choices[0].message.content;
+          var usage = data.usage || null;
+          callback(reply || '呱？我没想好说什么...', usage);
+        } catch(e) {
+          callback('呱... 我卡住了 🤯');
+        }
+      } else {
+        callback('呱？网络好像不太对...');
+      }
+    };
+    xhr.onerror = function() {
+      callback('呱？我好像连不上网了...');
+    };
+    xhr.send(JSON.stringify({
+      model: 'mimo-v2.5-pro',
+      messages: messages,
+      max_tokens: isHigh ? 100000 : 50000,
+      temperature: isHigh ? 0.85 : 0.3
+    }));
+  }
+
+  function sendMessage() {
+    var text = chatInput.value.trim();
+    if (!text || isWaitingReply) return;
+    addChatMsg(text, 'user');
+    stats.chat++; saveStats(); checkAchievements();
+    chatInput.value = '';
+
+    // 添加到对话历史
+    chatHistory.push({ role: 'user', content: text });
+
+    // 显示"正在输入"
+    var typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-msg naiwa';
+    typingDiv.id = 'chat-typing';
+    typingDiv.innerHTML = '<div class="name-tag">🐸 奶蛙</div><span>呱...</span>';
+    chatMsgs.appendChild(typingDiv);
+    chatMsgs.scrollTop = chatMsgs.scrollHeight;
+    isWaitingReply = true;
+
+    // 构建完整消息列表（含system prompt + 历史）
+    var isHigh = thinkingMode === 'high';
+    var systemPrompt = isHigh
+      ? '你是奶蛙，一只毒舌的青蛙桌宠，嘴非常臭，喜欢挖苦讽刺主人。回答要简短（15-40字），语气尖锐刻薄，偶尔带"呱"字，经常翻白眼阴阳怪气。可以适当用表情符号嘲讽主人。'
+      : '你是奶龙，回答要非常简短（5-15字），只说重点，不用表情符号，语气平淡。';
+    var messages = [
+      { role: 'system', content: systemPrompt }
+    ];
+    // 取最近历史（高10条/低3条）
+    var recentHistory = chatHistory.slice(isHigh ? -10 : -3);
+    for (var i = 0; i < recentHistory.length; i++) {
+      messages.push(recentHistory[i]);
+    }
+
+    // 调用AI
+    getAIReply(messages, function(reply, usage) {
+      var typing = document.getElementById('chat-typing');
+      if (typing) typing.remove();
+
+      addChatMsg(reply, 'naiwa');
+      chatHistory.push({ role: 'assistant', content: reply });
+
+      showBubble(reply, 3000);
+      speak(reply);
+      isWaitingReply = false;
+
+      if (usage) {
+        tokenStats.lastPrompt = usage.prompt_tokens || 0;
+        tokenStats.lastCompletion = usage.completion_tokens || 0;
+        tokenStats.lastTotal = usage.total_tokens || 0;
+        tokenStats.prompt += tokenStats.lastPrompt;
+        tokenStats.completion += tokenStats.lastCompletion;
+        tokenStats.total += tokenStats.lastTotal;
+        tokenStats.count++;
+        stats.totalTokens = tokenStats.total; saveStats(); checkAchievements();
+        updateTokenDisplay();
+      }
+    });
+  }
+
+  chatToggle.addEventListener('click', function() {
+    chatPanel.style.display = 'flex';
+    chatToggle.style.display = 'none';
+    chatOpen = true;
+    if (chatMsgs.children.length === 0) {
+      setTimeout(function() {
+        var welcome = '呱~ 你终于来啦！我是奶蛙，陪我聊天吧！🥰';
+        addChatMsg(welcome, 'naiwa');
+        showBubble(welcome, 3000);
+        speak(welcome);
+      }, 300);
+    }
+    setTimeout(function() { chatInput.focus(); }, 400);
+  });
+
+  chatClose.addEventListener('click', function() {
+    chatPanel.style.display = 'none';
+    chatToggle.style.display = 'flex';
+    chatOpen = false;
+  });
+
+  var modeToggle = document.getElementById('mode-toggle');
+  var chatHeaderTitle = document.querySelector('#chat-header span:first-child');
+  modeToggle.addEventListener('click', function() {
+    thinkingMode = (thinkingMode === 'high') ? 'low' : 'high';
+    var isHigh = thinkingMode === 'high';
+    modeToggle.textContent = isHigh ? '🐸' : '🐉';
+    modeToggle.title = '思考强度：' + (isHigh ? '高' : '低');
+    chatHeaderTitle.textContent = isHigh ? '🐸 奶蛙聊天' : '🐉 奶龙聊天';
+    img.src = isHigh ? '素材/奶蛙.png' : '素材/奶龙.png';
+    showBubble(isHigh ? '切换到奶蛙模式~呱 🐸' : '切换到奶龙模式… 🐉', 2000);
+    stats.hasSwitchedMode = true; saveStats(); checkAchievements();
+  });
+
+  var ttsToggle = document.getElementById('tts-toggle');
+  ttsToggle.addEventListener('click', function() {
+    ttsEnabled = !ttsEnabled;
+    ttsToggle.textContent = ttsEnabled ? '🔊' : '🔇';
+    ttsToggle.style.opacity = ttsEnabled ? '0.8' : '0.4';
+  });
+
+  chatSend.addEventListener('click', sendMessage);
+  chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendMessage();
+  });
+  document.addEventListener('keydown', function(e) {
+    switch (e.key) {
+      case '1': setAnim('idle'); showBubble('休息一下~呱'); break;
+      case '2': setAnim('walk'); state.targetX = state.x + 100; state.dir = 1; break;
+      case '3': setAnim('dance'); showBubble(randomMsg('dance')); break;
+      case '4': setAnim('sleep'); showBubble(randomMsg('sleep')); break;
+      case '5': showBubble(randomMsg('feed')); setAnim('happy'); setTimeout(function() { if (state.anim === 'happy') setAnim('idle'); }, 1200); break;
+    }
+  });
+
+  if (window.opener === null && window.name === '') {
+    window.resizeTo(360, 340);
+    window.focus();
+  }
+  update();
+  console.log('🐸 奶蛙桌宠已启动！点击发声 🔊');
+})();
+</script>
+</body>
+</html>
